@@ -1,0 +1,38 @@
+GET http://localhost:7071/api/crud_product
+
+Resposta esperada:
+[
+  {
+    "pid": 1,
+    "name": "Produto A",
+    "description": "Descrição do produto A"
+  },
+  {
+    "pid": 2,
+    "name": "Produto B",
+    "description": "Descrição do produto B"
+  }
+]
+
+POST http://localhost:7071/api/crud_product
+
+Body:
+{
+  "name": "Produto C",
+  "description": "Descrição do produto C"
+}
+
+PUT http://localhost:7071/api/crud_product
+
+Body:
+{
+  "pid": 1,
+  "name": "Produto A Atualizado",
+  "description": "Descrição do produto A atualizada"
+}
+
+DELETE http://localhost:7071/api/crud_product
+
+{
+  "pid": 1
+}
