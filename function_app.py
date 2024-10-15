@@ -1,16 +1,18 @@
 import logging
 import azure.functions as func
-import mysql.connector
+import pyodbc
 import json
 
-# Função para conectar ao banco de dados MySQL
 def connect_db():
-    return mysql.connector.connect(
-        host="localhost",  # Substitua pelo seu host MySQL
-        user="root",     # Substitua pelo seu usuário MySQL
-        password="",   # Substitua pela sua senha MySQL
-        database="produtos_db"    # Substitua pelo nome do banco de dados
-    )
+    server = 'localhost'  # Substitua pelo endereço do seu servidor
+    database = 'buynow_produtos'  # Substitua pelo nome do seu banco de dados
+
+    # String de conexão usando autenticação do Windows
+    connection_string = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};Trusted_Connection=yes;'
+    
+    # Conecta ao banco de dados
+    return pyodbc.connect(connection_string)
+
 
 # Inicializando a função no Azure Functions
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
@@ -20,8 +22,8 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 def crud_product(req: func.HttpRequest) -> func.HttpResponse:
     # Conectando ao banco de dados
     conn = connect_db()
-    cursor = conn.cursor(dictionary=True)
-    
+    cursor = conn.cursor()
+
     # Identificando o método HTTP
     method = req.method
 
@@ -29,7 +31,7 @@ def crud_product(req: func.HttpRequest) -> func.HttpResponse:
         # Criar um novo produto
         try:
             data = req.get_json()
-            cursor.execute("INSERT INTO products (name, description) VALUES (%s, %s)", (data['name'], data['description']))
+            cursor.execute("INSERT INTO products (name, description) VALUES (?, ?)", (data['name'], data['description']))
             conn.commit()
             return func.HttpResponse(json.dumps({"message": "Produto criado com sucesso!"}), status_code=201)
         except Exception as e:
@@ -39,14 +41,15 @@ def crud_product(req: func.HttpRequest) -> func.HttpResponse:
     elif method == "GET":
         # Listar todos os produtos
         cursor.execute("SELECT * FROM products")
-        products = cursor.fetchall()
+        columns = [column[0] for column in cursor.description]
+        products = [dict(zip(columns, row)) for row in cursor.fetchall()]
         return func.HttpResponse(json.dumps(products), status_code=200)
     
     elif method == "PUT":
         # Atualizar um produto existente
         try:
             data = req.get_json()
-            cursor.execute("UPDATE products SET name=%s, description=%s WHERE pid=%s", (data['name'], data['description'], data['pid']))
+            cursor.execute("UPDATE products SET name=?, description=? WHERE pid=?", (data['name'], data['description'], data['pid']))
             conn.commit()
             return func.HttpResponse(json.dumps({"message": "Produto atualizado com sucesso!"}), status_code=200)
         except Exception as e:
@@ -57,7 +60,7 @@ def crud_product(req: func.HttpRequest) -> func.HttpResponse:
         # Deletar um produto
         try:
             data = req.get_json()
-            cursor.execute("DELETE FROM products WHERE pid=%s", (data['pid'],))
+            cursor.execute("DELETE FROM products WHERE pid=?", (data['pid'],))
             conn.commit()
             return func.HttpResponse(json.dumps({"message": "Produto deletado com sucesso!"}), status_code=200)
         except Exception as e:
