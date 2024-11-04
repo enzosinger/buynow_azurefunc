@@ -49,12 +49,43 @@ def crud_product(req: func.HttpRequest) -> func.HttpResponse:
         # Atualizar um produto existente
         try:
             data = req.get_json()
-            cursor.execute("UPDATE products SET name=?, description=? WHERE pid=?", (data['name'], data['description'], data['pid']))
+            
+            # Verifica se o campo 'pid' foi passado
+            if 'pid' not in data:
+                return func.HttpResponse(json.dumps({"error": "O campo 'pid' é obrigatório"}), status_code=400)
+            
+            # Cria a query de atualização dinâmica
+            fields_to_update = []
+            values = []
+
+            if 'name' in data:
+                fields_to_update.append("name=?")
+                values.append(data['name'])
+            
+            if 'description' in data:
+                fields_to_update.append("description=?")
+                values.append(data['description'])
+
+            # Verifica se há pelo menos um campo para atualizar
+            if not fields_to_update:
+                return func.HttpResponse(json.dumps({"error": "Nenhum campo para atualizar"}), status_code=400)
+
+            # Adiciona o pid no final da lista de valores para a condição WHERE
+            values.append(data['pid'])
+
+            # Constrói a query final
+            query = f"UPDATE products SET {', '.join(fields_to_update)} WHERE pid=?"
+            
+            # Executa a query com os valores fornecidos
+            cursor.execute(query, tuple(values))
             conn.commit()
+            
             return func.HttpResponse(json.dumps({"message": "Produto atualizado com sucesso!"}), status_code=200)
+        
         except Exception as e:
             logging.error(str(e))
             return func.HttpResponse(f"Erro ao atualizar produto: {str(e)}", status_code=500)
+
     
     elif method == "DELETE":
         # Deletar um produto
