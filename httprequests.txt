@@ -1,5 +1,5 @@
-GET http://localhost:7071/api/crud_product
-
+# Obter todos os produtos
+GET http://localhost:7071/api/products
 Resposta esperada:
 [
   {
@@ -14,7 +14,9 @@ Resposta esperada:
   }
 ]
 
-POST http://localhost:7071/api/crud_product
+# Criar um novo produto
+POST http://localhost:7071/api/products
+Content-Type: application/json
 
 Body:
 {
@@ -22,17 +24,15 @@ Body:
   "description": "Descrição do produto C"
 }
 
-PUT http://localhost:7071/api/crud_product
+# Atualizar um produto existente (usando PID na URL)
+PUT http://localhost:7071/api/products/{pid}
+Content-Type: application/json
 
 Body:
 {
-  "pid": 1,
   "name": "Produto A Atualizado",
   "description": "Descrição do produto A atualizada"
 }
 
-DELETE http://localhost:7071/api/crud_product
-
-{
-  "pid": 1
-}
+# Deletar um produto existente (usando PID na URL)
+DELETE http://localhost:7071/api/products/{pid}
