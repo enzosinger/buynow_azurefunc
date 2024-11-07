@@ -7,10 +7,7 @@ import os
 def connect_db():
     server = 'localhost'
     database = 'buynow_produtos'
-
-    # Usando a string de conexão a partir do local.settings.json
     connection_string = os.getenv("SQL_SERVER_CONNECTION_STRING", f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};Trusted_Connection=yes;')
-    
     return pyodbc.connect(connection_string)
 
 # Inicializando a função no Azure Functions
@@ -46,8 +43,6 @@ def product_by_id(req: func.HttpRequest) -> func.HttpResponse:
     conn = connect_db()
     cursor = conn.cursor()
     method = req.method
-
-    # Obter o PID da URL
     pid = req.route_params.get('pid')
 
     if method == "PUT":
@@ -63,6 +58,10 @@ def product_by_id(req: func.HttpRequest) -> func.HttpResponse:
             if 'description' in data:
                 fields_to_update.append("description=?")
                 values.append(data['description'])
+            
+            if 'compras' in data:
+                fields_to_update.append("compras=?")
+                values.append(data['compras'])
 
             if not fields_to_update:
                 return func.HttpResponse(json.dumps({"error": "Nenhum campo para atualizar"}), status_code=400)
@@ -89,3 +88,37 @@ def product_by_id(req: func.HttpRequest) -> func.HttpResponse:
 
     cursor.close()
     conn.close()
+
+# Função que escuta o Service Bus e incrementa o campo 'compras' do produto
+@app.function_name(name="IncrementProductPurchases")
+@app.service_bus_queue_trigger(arg_name="msg", queue_name="purchase_events", connection="SERVICE_BUS_CONNECTION_STRING")
+def increment_product_purchases(msg: func.ServiceBusMessage):
+    try:
+        message_body = msg.get_body().decode('utf-8')
+        data = json.loads(message_body)
+        product_id = data.get("product_id")
+        
+        if not product_id:
+            logging.error("ID do produto não encontrado na mensagem.")
+            return
+
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        update_query = """
+        UPDATE products 
+        SET compras = compras + 1 
+        WHERE pid = ?
+        """
+        cursor.execute(update_query, (product_id,))
+        conn.commit()
+        
+        logging.info(f"Compra registrada para o produto ID {product_id}.")
+
+    except Exception as e:
+        logging.error(f"Erro ao processar a mensagem do Service Bus: {str(e)}")
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
