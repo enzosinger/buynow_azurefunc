@@ -5,9 +5,7 @@ import json
 import os
 
 def connect_db():
-    server = 'localhost'
-    database = 'buynow_produtos'
-    connection_string = os.getenv("SQL_SERVER_CONNECTION_STRING", f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server};DATABASE={database};Trusted_Connection=yes;')
+    connection_string = os.getenv("SQL_SERVER_CONNECTION_STRING")
     return pyodbc.connect(connection_string)
 
 # Inicializando a função no Azure Functions
